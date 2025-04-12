@@ -79,37 +79,61 @@ ngrok.kill()
 print("Túnel encerrado!")
 ```
 
-### 6. Funções reutilizáveis para gerenciamento de túneis Ngrok
+### 6. Funções para gerenciamento de túneis Ngrok e servidores HTTP
+
+#### Função para criar túnel com autenticação básica
 ```python
-# Função para criar um túnel Ngrok
-def criar_tunel_ngrok(porta, auth_token=None):
+def criar_tunel_ngrok(porta, auth_token=None, usuario="admin", senha="chatbot123"):
     """
-    Cria um túnel Ngrok para a porta especificada.
+    Cria um túnel Ngrok para a porta especificada com autenticação básica.
     
     Args:
         porta (int): Porta local que você deseja expor.
-        auth_token (str, opcional): Token de autenticação do Ngrok. 
-                                   Se não fornecido, usa o token já configurado.
+        auth_token (str, opcional): Token de autenticação do Ngrok.
+                                   Se não fornecido, solicita ao usuário.
+        usuario (str, opcional): Nome de usuário para autenticação básica. Padrão: "admin"
+        senha (str, opcional): Senha para autenticação básica. Padrão: "chatbot123"
     
     Returns:
         str: URL pública do túnel Ngrok.
     """
-    from pyngrok import ngrok
+    from pyngrok import ngrok, conf
     import os
     
     # Verificar se o token está definido
-    if auth_token:
-        os.environ["NGROK_AUTH_TOKEN"] = auth_token
-        !ngrok authtoken {auth_token}
+    if not auth_token:
+        if "NGROK_AUTH_TOKEN" not in os.environ:
+            auth_token = input("Cole aqui seu token do Ngrok: ")
+        else:
+            auth_token = os.environ["NGROK_AUTH_TOKEN"]
     
-    # Criar o túnel
-    public_url = ngrok.connect(porta)
+    # Configurar o token
+    os.environ["NGROK_AUTH_TOKEN"] = auth_token
+    !ngrok authtoken {auth_token}
+    
+    # Configurar autenticação básica
+    # O formato é: "usuario:senha"
+    auth = f"{usuario}:{senha}"
+    
+    # Configurar e iniciar o túnel com autenticação básica
+    pyngrok_config = conf.PyngrokConfig()
+    public_url = ngrok.connect(
+        addr=porta,
+        auth=auth,
+        pyngrok_config=pyngrok_config
+    )
+    
     print(f"Túnel Ngrok criado com sucesso!")
     print(f"URL pública: {public_url}")
+    print(f"Credenciais de acesso:")
+    print(f"  Usuário: {usuario}")
+    print(f"  Senha: {senha}")
     
     return public_url
+```
 
-# Função para encerrar um túnel Ngrok
+#### Função para encerrar túnel Ngrok
+```python
 def encerrar_tunel_ngrok(url_public):
     """
     Encerra um túnel Ngrok específico.
@@ -117,21 +141,135 @@ def encerrar_tunel_ngrok(url_public):
     Args:
         url_public (str): URL pública do túnel a ser encerrado.
     """
+    from pyngrok import ngrok
+    
     # Encerrar o túnel
     print("\nEncerrando o túnel...")
     ngrok.disconnect(url_public)
     ngrok.kill()
     print("Túnel encerrado!")
+```
 
-# Exemplo de como usar estas funções (comentado para não executar automaticamente)
-# url = criar_tunel_ngrok(porta=8000)
+#### Função para iniciar um servidor HTTP de teste
+```python
+def iniciar_servidor_teste(porta=8000):
+    """
+    Inicia um servidor HTTP simples para testar o túnel Ngrok.
+    
+    Args:
+        porta (int): Porta para iniciar o servidor. Padrão: 8000
+        
+    Returns:
+        HTTPServer: O objeto do servidor iniciado
+    """
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    import threading
+    
+    # Definir um manipulador HTTP simples
+    class MeuManipulador(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            
+            # Página HTML simples
+            html = f"""
+            <html>
+              <head>
+                <title>Teste do Chatbot - #7DaysOfCode</title>
+                <style>
+                  body {{ font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }}
+                  h1 {{ color: #4285f4; }}
+                  .container {{ border: 1px solid #ddd; padding: 20px; border-radius: 5px; }}
+                </style>
+              </head>
+              <body>
+                <h1>Servidor de Teste para o #7DaysOfCode</h1>
+                <div class="container">
+                  <h2>Chatbot em Python</h2>
+                  <p>Se você está vendo esta página, significa que:</p>
+                  <ul>
+                    <li>O servidor HTTP está funcionando corretamente</li>
+                    <li>O túnel Ngrok está encaminhando o tráfego adequadamente</li>
+                    <li>A autenticação básica está funcionando</li>
+                  </ul>
+                  <p>Caminho atual: {self.path}</p>
+                  <p>Endereço: {self.client_address}</p>
+                </div>
+              </body>
+            </html>
+            """
+            
+            self.wfile.write(html.encode())
+    
+    # Iniciar o servidor em uma thread separada
+    server = HTTPServer(('', porta), MeuManipulador)
+    print(f"Servidor iniciado na porta {porta}")
+    print(f"Acesse em http://localhost:{porta} no ambiente local")
+    print("Para encerrar o servidor, use a função finalizar_servidor()")
+    
+    # Executar o servidor em uma thread separada para não bloquear o notebook
+    thread = threading.Thread(target=server.serve_forever)
+    thread.daemon = True  # Permite que o notebook seja encerrado mesmo com o servidor rodando
+    thread.start()
+    
+    return server
+```
+
+#### Função para finalizar o servidor HTTP
+```python
+def finalizar_servidor(servidor):
+    """
+    Finaliza um servidor HTTP iniciado pela função iniciar_servidor_teste.
+    
+    Args:
+        servidor: Instância do servidor HTTP a ser finalizado.
+    """
+    if servidor:
+        print("Finalizando o servidor HTTP...")
+        servidor.shutdown()  # Encerra o loop serve_forever()
+        servidor.server_close()  # Fecha o socket
+        print("Servidor HTTP finalizado com sucesso.")
+    else:
+        print("Nenhum servidor para finalizar.")
+```
+
+### 7. Exemplo de uso completo
+
+```python
+# Iniciar servidor HTTP na porta 8000
+servidor = iniciar_servidor_teste(porta=8000)
+
+# Criar um túnel Ngrok para a porta 8000 com autenticação básica
+url = criar_tunel_ngrok(
+    porta=8000,
+    usuario="admin",  # Você pode mudar para o usuário desejado
+    senha="chatbot123"  # Você pode mudar para a senha desejada
+)
+
+# Aguardar enquanto você testa o acesso via URL do Ngrok
+# Aqui você pode acessar a URL fornecida pelo Ngrok em qualquer navegador
+# E inserir as credenciais de autenticação quando solicitado
+
+# Quando terminar, finalize o servidor e o túnel
+# finalizar_servidor(servidor)
 # encerrar_tunel_ngrok(url)
 ```
 
 ## Observações Importantes
 1. **Persistência do token**: A autenticação será necessária a cada nova sessão do Colab, já que o ambiente não mantém configurações entre sessões.
 2. **Plano gratuito**: O plano gratuito do Ngrok tem algumas limitações, como número limitado de túneis simultâneos.
-3. **Uso nos próximos dias**: Estas funções serão utilizadas nos próximos dias do desafio quando for necessário expor aplicações locais (como o chatbot) para acesso externo.
+3. **Autenticação básica**: A autenticação HTTP básica fornece uma camada de segurança simples, mas não é tão robusta quanto OAuth (disponível apenas nos planos pagos).
+4. **Encerramento de serviços**: Em algumas situações no Google Colab, pode ser necessário reiniciar o runtime para encerrar completamente os servidores (Menu > Runtime > Restart runtime).
+
+## Resolução de Problemas
+
+### Erro: "Connection refused"
+Se você receber um erro como "connection refused" ao acessar a URL do Ngrok, isso geralmente significa que:
+1. Não há nenhum serviço rodando na porta que você está tentando expor
+2. O serviço está rodando em uma porta diferente da que você configurou no Ngrok
+
+Solução: Certifique-se de iniciar primeiro o servidor HTTP na porta correta e só depois criar o túnel Ngrok para essa mesma porta.
 
 ## Próximos Passos
 1. Atualizar o README.md do projeto com o progresso do Dia 2
