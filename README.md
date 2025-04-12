@@ -25,7 +25,7 @@ Este repositório contém o desenvolvimento de um chatbot em Python como parte d
 ## Como Executar
 Os notebooks podem ser executados diretamente no Google Colab ou localmente após clonar o repositório.
 
-## Dia 2: Configuração do Ngrok
+### Dia 2: Configuração do Ngrok
 - Configuração do serviço Ngrok para exposição de aplicações locais na internet
 - Implementação de funções reutilizáveis para gerenciamento de túneis
 - [Link para o notebook](https://colab.research.google.com/github/facklen/python-chatbot-challenge/blob/main/notebooks/Dia2_Configuracao_Ngrok.ipynb)
