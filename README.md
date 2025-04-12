@@ -28,4 +28,4 @@ Os notebooks podem ser executados diretamente no Google Colab ou localmente apó
 ## Dia 2: Configuração do Ngrok
 - Configuração do serviço Ngrok para exposição de aplicações locais na internet
 - Implementação de funções reutilizáveis para gerenciamento de túneis
-- [Link para o notebook](./notebooks/Dia2-Configuracao-Ngrok.ipynb)
+- [Link para o notebook](https://colab.research.google.com/github/facklen/python-chatbot-challenge/blob/main/notebooks/Dia2_Configuracao_Ngrok.ipynb)
